@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Mvc.Internal;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -42,6 +43,40 @@ namespace Microsoft.AspNetCore.Mvc.ApiExplorer
                 {
                     description.SupportedResponseTypes.Add(responseType);
                 }
+
+                AddRequestTypeForFormFiles(description);
+            }
+        }
+
+        private void AddRequestTypeForFormFiles(ApiDescription description)
+        {
+            if (description.SupportedRequestFormats.Count > 0)
+            {
+                // If there are already supported formats registered, don't do anything.
+                return;
+            }
+
+            if (description.ParameterDescriptions.Any(p => p.Source == BindingSource.FormFile))
+            {
+                var requestMetadataAttributes = DefaultApiDescriptionProvider.GetRequestMetadataAttributes(description.ActionDescriptor);
+                // Walk through all 'filter' attributes in order, and allow each one to see or override
+                // the results of the previous ones. This is similar to the execution path for content-negotiation.
+                var contentTypes = new MediaTypeCollection();
+                if (requestMetadataAttributes != null)
+                {
+                    foreach (var metadataAttribute in requestMetadataAttributes)
+                    {
+                        metadataAttribute.SetContentTypes(contentTypes);
+                    }
+                }
+
+                foreach (var contentType in contentTypes)
+                {
+                    description.SupportedRequestFormats.Add(new ApiRequestFormat
+                    {
+                        MediaType = contentType,
+                    });
+                }
             }
         }
 
@@ -65,8 +100,8 @@ namespace Microsoft.AspNetCore.Mvc.ApiExplorer
 
             // We're looking for a name ending with Id, but preceded by a lower case letter. This should match
             // the normal PascalCase naming conventions.
-            if (parameter.Name.Length >= 3 && 
-                parameter.Name.EndsWith("Id", StringComparison.Ordinal) && 
+            if (parameter.Name.Length >= 3 &&
+                parameter.Name.EndsWith("Id", StringComparison.Ordinal) &&
                 char.IsLower(parameter.Name, parameter.Name.Length - 3))
             {
                 return true;
@@ -90,7 +125,7 @@ namespace Microsoft.AspNetCore.Mvc.ApiExplorer
 
             yield return CreateProblemResponse(statusCode: 0, isDefaultResponse: true);
         }
-        
+
         private ApiResponseType CreateProblemResponse(int statusCode, bool isDefaultResponse = false)
         {
             return new ApiResponseType

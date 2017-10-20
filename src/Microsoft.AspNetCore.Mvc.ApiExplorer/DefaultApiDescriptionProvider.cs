@@ -482,7 +482,7 @@ namespace Microsoft.AspNetCore.Mvc.ApiExplorer
             return declaredReturnType;
         }
 
-        private IApiRequestMetadataProvider[] GetRequestMetadataAttributes(ControllerActionDescriptor action)
+        internal static IApiRequestMetadataProvider[] GetRequestMetadataAttributes(ActionDescriptor action)
         {
             if (action.FilterDescriptors == null)
             {
